@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+# Dados e credenciais
+data/
+.env
+*.p8
+
+# dbt e Elementary
+target/
+dbt_packages/
+logs/
+profiles.yml
+edr_target/
