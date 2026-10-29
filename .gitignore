@@ -12,6 +12,7 @@ wheels/
 data/
 .env
 *.p8
+keys/
 
 # dbt e Elementary
 target/

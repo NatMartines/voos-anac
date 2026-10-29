@@ -7,7 +7,11 @@ authors = [
     { name = "NatMartines", email = "nathalia.martines5@gmail.com" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+    "snowflake-connector-python>=5.1.0",
+]
 
 [project.scripts]
 voos-anac = "voos_anac:main"
