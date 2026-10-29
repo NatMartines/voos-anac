@@ -48,3 +48,22 @@ Quais rotas, aeroportos e companhias mais atrasam no Brasil, e quanto?
 
 ## Validação
 - Comparar com a base oficial da ANAC "Percentuais de atrasos e de cancelamentos de cada etapa de voo".
+
+## Descobertas da exploração (Dia 5)
+
+- **Situação dos voos (2024):** 945.244 realizados (95,77%) e 41.780 cancelados (4,23%).
+- **Voos sem partida prevista:** 30.942 voos realizados não têm `partida_prevista`. Quase todos têm código DI diferente de `0`.
+  **Regra:** o atraso só é calculado para voos com partida prevista (DI `0`, 948.589 voos).
+- **Virada do ano:** 13 voos do arquivo de dezembro têm partida em janeiro de 2025. Eles ficam no dado, e a análise usa a data prevista.
+- **Etapas no exterior:** há trechos entre aeroportos estrangeiros (ex.: EHAM → ELLX), operados por cargueiras como CLX e FDX.
+- **Tipo de linha:** N 796.011 · I 143.485 · G 24.710 · C 22.817. O significado oficial dos códigos ainda precisa ser confirmado.
+- **Cruzamento com aeroportos:** 32 códigos não batem com `icao_code`. Alguns aeroportos (ex.: SBCO) guardam o código em `ident` ou `gps_code`.
+  **Regra:** criar uma tabela de códigos (icao_code + gps_code + ident) e fazer o join por igualdade. Só **OKBK** (2 voos) fica sem correspondência.
+- **Performance:** um join com `IN (col1, col2, col3)` levou 4 min 46 s, e o Query Profile mostrou "Inefficient join condition".
+  Reescrito com UNION + join por igualdade, levou **1,7 s**.
+
+## Recursos do Snowflake testados
+
+- **Zero-copy clone:** a cópia da RAW_VRA ficou pronta na hora e sem custo de armazenamento.
+- **Time Travel:** `BEFORE (STATEMENT => id)` recuperou a tabela como estava antes de um DELETE.
+- **UNDROP:** recupera a tabela como estava no momento do DROP.
