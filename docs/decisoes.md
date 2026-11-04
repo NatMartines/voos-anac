@@ -76,3 +76,14 @@ Quais rotas, aeroportos e companhias mais atrasam no Brasil, e quanto?
   Os adiantados se concentram nos tipos G (1,7% do tipo) e I (0,57%). Nos domésticos (N) são só 0,04%.
   Hipóteses: fuso horário em voos internacionais e reprogramação em voos de carga. Não confirmado.
   **Decisão:** manter na staging e criar um teste com `severity: warn` no Dia 8.
+
+  ## Intermediate e marts (Dia 7)
+
+- **Tabela de códigos (`int_aeroporto_codigos`):** junta icao_code, gps_code e ident, com um único aeroporto por código (prioridade icao > gps > ident; aeroporto fechado perde o desempate). Evita duplicar voos no join.
+- **De-para de códigos antigos (seed `de_para_aeroportos`):** OKBK→OKKK (Kuwait), SEQU→SEQM (Quito), GQNN→GQNO (Nouakchott). Resolveu os 18 voos sem aeroporto. Todos os 987.024 voos ficaram com origem e destino.
+- **Duplicata na fonte:** 1 voo (IBE 6829, LEMD, 01/09/2024) aparece duas vezes no arquivo da ANAC. Removido na `fct_voos` com `qualify row_number()` por `id_voo`. A fato tem 987.023 linhas.
+- **`data_voo`:** data prevista e, se ela não existir, data real. Assim os 30.942 voos sem previsão também entram por data.
+- **`fct_voos` incremental:** `unique_key = id_voo`, com filtro por `carregado_em`. Nas próximas cargas, só os voos novos são processados.
+- **`mart_rotas`:** 29.746 linhas (mês × companhia × origem × destino). Soma de voos igual à fato.
+  Percentuais devem ser recalculados a partir das somas, nunca pela média dos percentuais.
+- **Primeiro achado:** nas rotas mais movimentadas, os voos que saem de Congonhas (SBSP) atrasam mais que os que chegam lá (ex.: SP→Brasília 10,54% x Brasília→SP 5,67%).

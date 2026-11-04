@@ -8,12 +8,13 @@ select
     pais                                 as pais,
     regiao                               as regiao,
 
-    case when pais = 'BR'
-         then split_part(regiao, '-', 2) 
+    case 
+        when pais = 'BR'
+        then split_part(regiao, '-', 2) 
     end as uf,
     municipio,
     upper(trim(icao_code))               as icao_code,
     upper(trim(iata_code))               as iata_code,
     upper(trim(gps_code))                as gps_code
-    
+
 from {{ source('raw', 'raw_aeroportos') }}
