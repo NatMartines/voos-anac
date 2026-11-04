@@ -67,3 +67,12 @@ Quais rotas, aeroportos e companhias mais atrasam no Brasil, e quanto?
 - **Zero-copy clone:** a cópia da RAW_VRA ficou pronta na hora e sem custo de armazenamento.
 - **Time Travel:** `BEFORE (STATEMENT => id)` recuperou a tabela como estava antes de um DELETE.
 - **UNDROP:** recupera a tabela como estava no momento do DROP.
+
+## Staging (Dia 6)
+
+- **Conversão de datas:** `TRY_TO_TIMESTAMP` converteu 100% das datas (zero falhas nas 4 colunas).
+- **Atraso:** 87.456 voos atrasados acima de 30 min, 9,57% dos 914.302 voos realizados com partida prevista. Atraso médio de 7,6 min.
+- **Valores extremos:** 1.620 voos saíram mais de 1 h adiantados e 214 mais de 1 dia atrasados (0,2% do total).
+  Os adiantados se concentram nos tipos G (1,7% do tipo) e I (0,57%). Nos domésticos (N) são só 0,04%.
+  Hipóteses: fuso horário em voos internacionais e reprogramação em voos de carga. Não confirmado.
+  **Decisão:** manter na staging e criar um teste com `severity: warn` no Dia 8.

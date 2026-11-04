@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    database: VOOS
+    schema: RAW
+    tables:
+      - name: raw_vra
+        description: Voos regulares de 2024 (VRA da ANAC), carregados como texto.
+      - name: raw_aeroportos
+        description: Aeroportos do OurAirports, com código ICAO e coordenadas.
+      - name: raw_empresas
+        description: Cadastro de empresas aéreas da ANAC, só com colunas não pessoais.
