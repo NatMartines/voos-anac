@@ -1,6 +1,6 @@
 with dias as (
-    select dateadd(day, row_number() over (order by seq4()) - 1, '2024-01-01'::date) as data
-    from table(generator(rowcount => 397))
+    select dateadd(day, row_number() over (order by seq4()) - 1, '2023-12-31'::date) as data
+    from table(generator(rowcount => 398))
 )
 
 select
@@ -34,5 +34,5 @@ select
                                6,'Sábado', 
                                7,'Domingo') as dia_semana,
     dayofweekiso(data) in (6, 7)      as eh_fim_de_semana
-    
+
 from dias

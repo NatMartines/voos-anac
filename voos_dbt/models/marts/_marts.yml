@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: fct_voos
+    description: Um voo por linha (VRA 2024 da ANAC), com chaves das dimensões e medidas de atraso.
+    columns:
+      - name: id_voo
+        data_tests:
+          - unique
+          - not_null
+      - name: data_voo
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_data')
+                field: data
+      - name: id_aeroporto_origem
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_aeroporto')
+                field: id_aeroporto
+      - name: id_aeroporto_destino
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_aeroporto')
+                field: id_aeroporto
+      - name: empresa_icao
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_companhia')
+                field: empresa_icao
+      - name: situacao_voo
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['REALIZADO', 'CANCELADO']
+      - name: eh_atrasado
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: dim_aeroporto
+    columns:
+      - name: id_aeroporto
+        data_tests: [unique, not_null]
+      - name: codigo_icao
+        data_tests: [not_null]
+      - name: latitude
+        data_tests: [not_null]
+      - name: longitude
+        data_tests: [not_null]
+
+  - name: dim_companhia
+    columns:
+      - name: empresa_icao
+        data_tests: [unique, not_null]
+
+  - name: dim_data
+    columns:
+      - name: data
+        data_tests: [unique, not_null]
+
+  - name: mart_rotas
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [mes, empresa_icao, origem, destino]
+    columns:
+      - name: pct_atrasados
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: pct_cancelados
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100

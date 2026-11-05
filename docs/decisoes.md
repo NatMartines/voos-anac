@@ -87,3 +87,11 @@ Quais rotas, aeroportos e companhias mais atrasam no Brasil, e quanto?
 - **`mart_rotas`:** 29.746 linhas (mês × companhia × origem × destino). Soma de voos igual à fato.
   Percentuais devem ser recalculados a partir das somas, nunca pela média dos percentuais.
 - **Primeiro achado:** nas rotas mais movimentadas, os voos que saem de Congonhas (SBSP) atrasam mais que os que chegam lá (ex.: SP→Brasília 10,54% x Brasília→SP 5,67%).
+
+## Qualidade (Dia 8)
+
+- **39 testes no dbt:** 37 passam e 2 são alertas conhecidos (`severity: warn`).
+  - Genéricos: unique/not_null nas chaves, relationships da fato para as 3 dimensões, accepted_values na situação, combinação única e percentuais entre 0 e 100 no mart_rotas.
+  - Singulares: soma do mart igual à fato; voos adiantados mais de 1 h (1.620, warn); atrasados mais de 1 dia (214, warn); chegada antes da partida.
+- **Chegada antes da partida: zero casos.** Partida e chegada estão no mesmo padrão de horário, inclusive nos voos internacionais. Isso enfraquece a hipótese de fuso horário para os voos adiantados.
+- **`dim_data` começa em 31/12/2023:** o teste de relationships encontrou 2 voos internacionais que partiram em 31/12/2023 por volta das 23h e chegaram em 01/01/2024 (CMP Z0216 Panamá→Galeão e ACA 0096 Montreal→Guarulhos). Sem partida prevista, a `data_voo` usa a data real.
