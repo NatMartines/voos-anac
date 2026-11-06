@@ -73,7 +73,7 @@ models:
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [mes, empresa_icao, origem, destino]
+            combination_of_columns: [mes, empresa_icao, origem, destino, tipo_linha]
     columns:
       - name: pct_atrasados
         data_tests:
