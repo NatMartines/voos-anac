@@ -95,3 +95,12 @@ Quais rotas, aeroportos e companhias mais atrasam no Brasil, e quanto?
   - Singulares: soma do mart igual à fato; voos adiantados mais de 1 h (1.620, warn); atrasados mais de 1 dia (214, warn); chegada antes da partida.
 - **Chegada antes da partida: zero casos.** Partida e chegada estão no mesmo padrão de horário, inclusive nos voos internacionais. Isso enfraquece a hipótese de fuso horário para os voos adiantados.
 - **`dim_data` começa em 31/12/2023:** o teste de relationships encontrou 2 voos internacionais que partiram em 31/12/2023 por volta das 23h e chegaram em 01/01/2024 (CMP Z0216 Panamá→Galeão e ACA 0096 Montreal→Guarulhos). Sem partida prevista, a `data_voo` usa a data real.
+
+## Automação no Snowflake (Dia 9)
+
+- **Stream:** testado numa cópia da RAW_VRA. Registrou as 5 linhas inseridas (`METADATA$ACTION = INSERT`) e voltou a zero depois de consumido. É a base para cargas incrementais (CDC).
+- **Task `TSK_CARGA_VRA`:** COPY INTO mensal (dia 5, 6h de Brasília). Testada com `EXECUTE TASK`: SUCCEEDED, sem duplicar linhas, porque o COPY INTO pula arquivos já carregados. **Fica suspensa** para não consumir créditos.
+- **Dynamic Table `DT_RESUMO_MENSAL`:** resumo mensal com `TARGET_LAG = 1 day` e refresh INCREMENTAL. **Fica suspensa.**
+  Comparação com o dbt: a Dynamic Table é mais simples para um agregado que só depende de uma tabela; o dbt é melhor para o projeto inteiro, porque traz testes, documentação e lineage.
+- **Sazonalidade:** % de atrasos acima de 30 min é maior em novembro (13,81%) e dezembro (13,80%) e menor em maio (6,89%).
+- **Atenção:** a Dynamic Table lê a `fct_voos`. Um `dbt build --full-refresh` recria a fato e pode exigir recriar a Dynamic Table.
