@@ -1,9 +1,12 @@
-with voos as (select * from {{ ref('fct_voos') }}),
-     aero as (select * from {{ ref('dim_aeroporto') }}),
-     cia  as (select * from {{ ref('dim_companhia') }})
+with voos  as (select * from {{ ref('fct_voos') }}),
+     aero  as (select * from {{ ref('dim_aeroporto') }}),
+     cia   as (select * from {{ ref('dim_companhia') }}),
+     datas as (select * from {{ ref('dim_data') }})          
 
 select
-    date_trunc('month', v.data_voo)        as mes,
+    dt.inicio_mes                          as mes,           
+    dt.ano,                                                  
+    dt.nome_mes,                                             
     v.empresa_icao,
     c.nome_companhia,
     o.codigo_icao                          as origem,
@@ -42,12 +45,15 @@ select
 from voos v
 
 left join aero o 
-        on v.id_aeroporto_origem  = o.id_aeroporto
+        on v.id_aeroporto_origem = o.id_aeroporto
 
 left join aero d 
         on v.id_aeroporto_destino = d.id_aeroporto
 
 left join cia  c 
-        on v.empresa_icao        = c.empresa_icao
-        
+        on v.empresa_icao = c.empresa_icao
+
+left join datas dt                                           
+        on v.data_voo = dt.data
+
 group by all
