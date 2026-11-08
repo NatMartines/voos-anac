@@ -1,6 +1,7 @@
 import base64
 import html
 import json
+import re
 import unicodedata
 from pathlib import Path
 
@@ -133,13 +134,31 @@ session = conn.session()
 
 CONTAGENS = ["voos", "cancelados", "voos_com_previsao", "atrasados"]
 
+# Nome exibido das companhias (código ICAO → nome comercial)
 NOMES_COMPANHIAS = {
+    # Brasileiras
     "AZU": "Azul", "GLO": "Gol", "TAM": "LATAM Brasil", "ACN": "Azul Conecta",
-    "PTB": "Voepass", "ARG": "Aerolíneas Argentinas", "TAP": "TAP Air Portugal",
-    "CMP": "Copa Airlines", "AAL": "American Airlines", "LAN": "LATAM Chile",
-    "LPE": "LATAM Peru", "SKU": "Sky Airline", "AFR": "Air France", "KLM": "KLM",
-    "IBE": "Iberia", "DAL": "Delta Air Lines", "UAL": "United Airlines",
+    "PTB": "Voepass", "PAM": "MAP Linhas Aéreas",
+    # América do Sul e Central
+    "ARG": "Aerolíneas Argentinas", "CMP": "Copa Airlines", "LAN": "LATAM Chile",
+    "LPE": "LATAM Peru", "SKU": "Sky Airline", "AVA": "Avianca",
+    "JAT": "JetSMART Chile", "JES": "JetSMART Argentina", "FBZ": "Flybondi",
+    "BOV": "Boliviana de Aviación", "AMX": "Aeroméxico",
+    # Europa
+    "TAP": "TAP Air Portugal", "AFR": "Air France", "KLM": "KLM", "IBE": "Iberia",
+    "ITY": "ITA Airways", "BAW": "British Airways", "DLH": "Lufthansa", "SWR": "Swiss",
+    "AEA": "Air Europa",
+    # América do Norte
+    "AAL": "American Airlines", "DAL": "Delta Air Lines", "UAL": "United Airlines",
+    "ACA": "Air Canada",
+    # Oriente Médio e África
+    "THY": "Turkish Airlines", "UAE": "Emirates", "QTR": "Qatar Airways",
+    "ETH": "Ethiopian Airlines",
 }
+
+# Sufixos de empresa que tiramos dos nomes que não estão no dicionário
+SUFIXOS_EMPRESA = r"\b(S\.?\s?A\.?|S/A|LTDA\.?|S\.?P\.?A\.?|SPA|PLC|INC\.?|GROUP|CORP\.?|LLC|CO\.?|AG|N\.?V\.?|LIMITED|LTD\.?)(?=\s|$|,|-)"
+PALAVRAS_PEQUENAS = {"de", "del", "da", "do", "dos", "das", "e", "y", "la", "las", "los"}
 
 # Nome exibido de alguns aeroportos: em português, ou com o aeroporto quando a cidade tem mais de um
 NOMES_AEROPORTOS = {
@@ -193,6 +212,25 @@ def sem_acento(texto: str) -> str:
                    if unicodedata.category(c) != "Mn").lower().strip()
 
 
+def limpar_nome_companhia(nome) -> str:
+    """Deixa apresentável o nome de uma companhia que não está no dicionário.
+    Ex.: 'FB LÍNEAS AÉREAS S.A (FLYBONDI)' → 'Flybondi'; 'BRITISH AIRWAYS PLC' → 'British Airways'."""
+    if not isinstance(nome, str) or not nome.strip():
+        return "Sem nome"
+    nome = nome.strip()
+    entre_parenteses = re.search(r"\(([^)]+)\)", nome)
+    if entre_parenteses:                              # o nome comercial costuma vir entre parênteses
+        nome = entre_parenteses.group(1)
+    else:                                             # tira o que vem depois de " - " (país, apelido)
+        nome = nome.split(" - ")[0]
+    nome = re.sub(SUFIXOS_EMPRESA, "", nome.upper())  # tira S.A., LTDA, PLC...
+    nome = re.sub(r"[\s,.-]+$", "", re.sub(r"\s+", " ", nome)).strip()
+    palavras = [p.lower() if (i > 0 and p.lower() in PALAVRAS_PEQUENAS) else p.capitalize()
+                for i, p in enumerate(nome.split())]
+    nome = " ".join(palavras)
+    return nome if len(nome) <= 24 else nome[:23].rstrip() + "…"
+
+
 @st.cache_data(ttl=3600)
 def carregar_rotas() -> pd.DataFrame:
     df = session.table("VOOS.MARTS.MART_ROTAS").to_pandas()
@@ -202,7 +240,7 @@ def carregar_rotas() -> pd.DataFrame:
     df[CONTAGENS] = df[CONTAGENS].astype("int64")
     df["atraso_medio_min"] = df["atraso_medio_min"].astype("float64")
     df["companhia"] = df["empresa_icao"].map(NOMES_COMPANHIAS).fillna(
-        df["nome_companhia"].str.title().str.slice(0, 22)
+        df["nome_companhia"].map(limpar_nome_companhia)
     )
     df["mes_abrev"] = df["nome_mes"].str.slice(0, 3)
     df["nome_origem"] = (df["origem"].map(NOMES_AEROPORTOS)
