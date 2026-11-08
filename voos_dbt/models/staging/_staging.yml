@@ -1,0 +1,111 @@
+version: 2
+
+models:
+  - name: stg_vra
+    description: Voos do VRA 2024 com tipos convertidos, minutos de atraso e flags de atraso e cancelamento.
+    columns:
+      - name: empresa_icao
+        description: Código ICAO da companhia aérea.
+        data_tests: [not_null]
+      - name: aeroporto_origem
+        description: Código do aeroporto de origem informado pela ANAC.
+        data_tests: [not_null]
+      - name: aeroporto_destino
+        description: Código do aeroporto de destino informado pela ANAC.
+        data_tests: [not_null]
+      - name: codigo_tipo_linha
+        description: Tipo de linha (N = nacional, I = internacional, C = cargueiro, G = outros).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['N', 'I', 'C', 'G']
+              config:
+                severity: warn
+      - name: partida_prevista
+        description: Data e hora prevista de partida. Pode faltar em alguns voos da fonte.
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: situacao_voo
+        description: REALIZADO ou CANCELADO.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['REALIZADO', 'CANCELADO']
+      - name: eh_atrasado
+        description: 1 se o voo realizado partiu mais de 30 min depois do previsto.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: eh_cancelado
+        description: 1 se o voo foi cancelado.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: arquivo_origem
+        description: Arquivo do stage de onde a linha foi carregada.
+        data_tests: [not_null]
+
+  - name: stg_aeroportos
+    description: Aeroportos do OurAirports com códigos padronizados, coordenadas e UF.
+    columns:
+      - name: id_aeroporto
+        description: Identificador do aeroporto no OurAirports.
+        data_tests: [unique, not_null]
+      - name: ident
+        description: Código principal do aeroporto no OurAirports.
+        data_tests: [unique, not_null]
+      - name: tipo_aeroporto
+        description: Tipo do aeroporto no OurAirports.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['small_airport', 'medium_airport', 'large_airport', 'heliport', 'seaplane_base', 'balloonport', 'closed']
+              config:
+                severity: warn
+      - name: latitude
+        description: Latitude em graus.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -90
+                max_value: 90
+      - name: longitude
+        description: Longitude em graus.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -180
+                max_value: 180
+
+  - name: stg_empresas
+    description: Cadastro de empresas aéreas da ANAC, só com colunas não pessoais.
+    columns:
+      - name: id_empresa
+        description: Identificador da empresa no cadastro da ANAC.
+        data_tests:
+          - not_null
+          - unique:
+              config:
+                severity: warn
+      - name: empresa_icao
+        description: Código ICAO da empresa. Algumas empresas do cadastro não têm ICAO.
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: stg_calendario
+    description: Um dia por linha, de 31/12/2023 a 31/01/2025. Base da dim_data.
+    columns:
+      - name: data
+        description: Data do calendário.
+        data_tests: [unique, not_null]

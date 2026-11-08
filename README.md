@@ -56,9 +56,45 @@ ANAC (VRA 2024) + OurAirports
 
 ---
 
+## Ingestão
+
+A ingestão é feita por scripts Python em `ingestion/` e por SQL em `sql/`, executados **nesta ordem**:
+
+| # | Script | O que faz |
+|---|---|---|
+| 1 | `sql/01_setup.sql` | Cria o warehouse XSMALL com auto-suspend, o resource monitor, o database `VOOS`, os schemas e a role `VOOS_DEV` |
+| 2 | `ingestion/gerar_chaves.py` | Gera o par de chaves para autenticação no Snowflake (a privada fica em `keys/`, fora do Git) |
+| 3 | `ingestion/baixar_vra.py` | Baixa os 12 arquivos mensais do VRA de 2024 do portal de dados abertos da ANAC |
+| 4 | `sql/02_stage.sql` | Cria o stage interno e os formatos de arquivo (separador, cabeçalho, encoding) |
+| 5 | `ingestion/enviar_stage.py` | Envia os arquivos para o stage com `PUT` (compacta em `.gz` e pula o que já foi enviado) |
+| 6 | `sql/03_carga.sql` | Cria as tabelas RAW e carrega os arquivos com `COPY INTO` |
+| 7 | `sql/04_automacao.sql` | Task mensal, stream e dynamic table (testados e deixados suspensos) |
+
+```
+uv run python ingestion/gerar_chaves.py
+uv run python ingestion/baixar_vra.py --ano 2024
+uv run python ingestion/enviar_stage.py
+```
+
+**Organização no stage:**
+
+```
+@VOOS.RAW.STG_VOOS/
+├── vra/ano=AAAA/mes=MM/       # CSV mensal do VRA (.gz)
+└── referencias/
+    ├── airports/              # aeroportos do OurAirports
+    └── empresas/              # cadastro de empresas aéreas da ANAC
+```
+
+- **Idempotente:** se o arquivo do mês já foi baixado ou enviado, ele é pulado (use `--force` para baixar de novo).
+- **Tudo como texto na RAW:** a tipagem fica a cargo da camada de staging do dbt.
+- **Rastreável:** cada linha guarda o arquivo de origem (`METADATA$FILENAME`) e a hora da carga.
+
+---
+
 ## ✅ Qualidade e validação
 
-- **Testes dbt:** `unique`, `not_null`, `relationships`, `accepted_values`, `unique_combination_of_columns`, `accepted_range` e testes singulares (ex.: soma do `mart_rotas` igual à fato).
+- **51 testes dbt em todas as camadas:** `unique`, `not_null`, `relationships`, `accepted_values`, `accepted_range`, `unique_combination_of_columns` e testes singulares (ex.: soma do `mart_rotas` igual à fato; chegada depois da partida). Problemas conhecidos da fonte ficam como `warn`, visíveis sem travar o pipeline.
 - **Elementary:** relatório completo de testes e lineage em 👉 **[natmartines.github.io/voos-anac/elementary](https://natmartines.github.io/voos-anac/elementary/)**
 - **Validação contra os números oficiais da ANAC** (janeiro de 2024, voos N + I):
 
@@ -74,6 +110,7 @@ Nas rotas comparadas, as etapas previstas **batem exatamente**. Detalhes em [`an
 ## 🧭 Decisões principais
 
 - **Recorte oficial:** só voos regulares de passageiros (tipos N + I), igual ao indicador da ANAC.
+- **De-para de aeroportos:** alguns códigos da ANAC não existem no OurAirports (aeroportos que mudaram de código); um seed faz a ponte.
 - **% sempre recalculado a partir das somas**, nunca pela média de percentuais.
 - **Mínimo de voos nos rankings**, para amostras pequenas não aparecerem no topo por acaso.
 - **Mapa por estado em vez de linhas de rotas:** testei arcos e linhas, mas centenas de rotas sobrepostas ficavam ilegíveis.
@@ -107,6 +144,7 @@ Usei o **Claude** como par de programação, principalmente no código Python do
 
 - Análise apenas de **2024**.
 - O atraso é medido **na partida**, não na chegada.
+- **30.942 voos** não têm partida prevista na fonte; para eles, a data do voo usa a partida real.
 - A ANAC parece contar como cancelados alguns voos que aparecem como realizados no VRA (diferença de ~1 p.p. em algumas rotas).
 - O app do Streamlit in Snowflake **não é público**: fica dentro da conta Snowflake. Por isso o resultado está no GIF acima.
 
@@ -120,23 +158,57 @@ Usei o **Claude** como par de programação, principalmente no código Python do
 
 ## ▶️ Como rodar
 
-1. Crie uma conta no Snowflake e rode os scripts de `sql/` (warehouse, resource monitor, database, schemas, role, stage e file formats).
-2. Instale as dependências:
+1. Crie uma conta no Snowflake e siga a ordem da seção **Ingestão**.
+2. Instale as dependências e configure o `.env` (conta, usuário e caminho da chave privada):
 ```bash
    uv sync
 ```
-3. Configure o `.env` com a conta, o usuário e o caminho da chave privada (veja `ingestion/`).
-4. Rode a ingestão (download dos CSVs da ANAC e envio para o stage) e o `COPY INTO`.
-5. Construa os modelos e rode os testes:
+3. Construa os modelos e rode os testes:
 ```bash
    cd voos_dbt
    uv run dbt deps
    uv run dbt build
 ```
-6. No Snowsight, crie um app Streamlit e envie os arquivos da pasta `app/`.
+4. Gere o relatório de qualidade:
+```bash
+   uv run edr report --profile-target voos
+```
+
+**Dashboard:** no Snowsight, crie um app Streamlit e envie os arquivos da pasta `app/` (`streamlit_app.py`, `brasil_estados.geojson`, `logo.png` e `.streamlit/config.toml`).
 
 ---
 
-**Fonte dos dados:** [ANAC · Dados abertos](https://www.gov.br/anac/pt-br/acesso-a-informacao/dados-abertos) (VRA e percentuais de atrasos e cancelamentos) e [OurAirports](https://ourairports.com/data/).
+## Estrutura do repositório
 
-Feito por **Natália Martines** · [GitHub](https://github.com/NatMartines)
+```
+voos-anac/
+├── ingestion/           # scripts Python (chaves, download da ANAC, envio ao stage)
+├── sql/                 # setup, stage, carga (COPY INTO) e automação
+├── voos_dbt/            # projeto dbt
+│   ├── models/
+│   │   ├── staging/
+│   │   ├── intermediate/
+│   │   └── marts/
+│   ├── seeds/           # de-para de códigos de aeroportos
+│   ├── tests/           # testes singulares
+│   └── macros/
+├── analyses/            # exploração e validação com a ANAC
+├── app/                 # dashboard Streamlit in Snowflake
+├── docs/                # decisões, imagens e relatório Elementary (GitHub Pages)
+└── .claude/skills/      # skills de IA usadas no projeto
+```
+
+---
+
+## Fonte dos dados
+
+- **VRA (Voo Regular Ativo):** ANAC, dados abertos, voos de 2024.
+- **Percentuais de atrasos e cancelamentos (Resolução 218):** ANAC, usados na validação.
+- **Cadastro de empresas aéreas:** ANAC, apenas colunas não pessoais.
+- **Aeroportos e coordenadas:** [OurAirports](https://ourairports.com/data/) (domínio público).
+
+Projeto pessoal de portfólio, feito com dados públicos. Não é um painel oficial da ANAC.
+
+---
+
+**Natália Martines** · [LinkedIn](https://www.linkedin.com/in/nathaliamartines) · [GitHub](https://github.com/NatMartines)
