@@ -131,7 +131,7 @@ O projeto inteiro custou **cerca de US$ 30** em créditos do período de teste d
 
 ## 🤖 Uso de IA
 
-Usei o **Claude** como par de programação, principalmente no código Python do dashboard, e transformei o que funcionou em **skills reutilizáveis**, versionadas no repositório:
+Defini o layout, as regras de cálculo e os gráficos e, a partir dessas especificações, usei o **Claude Code** para gerar o código do dashboard. Depois, transformei esse padrão em **skills reutilizáveis**, versionadas no repositório:
 
 | Skill | Para que serve |
 |---|---|
