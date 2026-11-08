@@ -104,3 +104,35 @@ Quais rotas, aeroportos e companhias mais atrasam no Brasil, e quanto?
   Comparação com o dbt: a Dynamic Table é mais simples para um agregado que só depende de uma tabela; o dbt é melhor para o projeto inteiro, porque traz testes, documentação e lineage.
 - **Sazonalidade:** % de atrasos acima de 30 min é maior em novembro (13,81%) e dezembro (13,80%) e menor em maio (6,89%).
 - **Atenção:** a Dynamic Table lê a `fct_voos`. Um `dbt build --full-refresh` recria a fato e pode exigir recriar a Dynamic Table.
+
+## Dia 11 — Dashboard final (Streamlit in Snowflake)
+
+**Mapa: rotas → estados (coroplético)**
+- Testei linhas, arcos 3D e bolhas com pydeck para mostrar as rotas, mas ficaram confusos de ler.
+- Troquei por um mapa coroplético por estado (Altair `geoshape`), pintado pelo % de voos que saíram com mais de 30 min de atraso, em 4 faixas de cor.
+- Rótulos com contorno branco (halo) para ficarem legíveis em qualquer cor.
+
+**Gráficos**
+- Companhias: barras com o % e a base do cálculo ("27,8% de 4.079 voos"), em laranja/azul conforme a média.
+- Meses: linha com o % por mês.
+- Rotas: ranking "origem → destino" (mín. 500 voos sem filtro; 50 com filtro) para evitar rotas com poucos voos no topo.
+
+**Filtros**
+- Recorte fixo no código: ano de 2024 e só voos regulares de passageiros (N + I), igual ao indicador oficial da ANAC.
+- Filtros: Mês, Companhia, Estado e Aeroporto.
+- Estado e Aeroporto filtram pela **origem** do voo, a mesma regra do mapa, para todos os gráficos contarem a mesma história.
+
+**Regras de cálculo**
+- Os % são sempre recalculados a partir das somas (atrasados ÷ voos com horário previsto), nunca pela média de percentuais.
+- Os cancelados ficam fora da base do % de atrasados.
+
+**Desempenho**
+- Dados em cache por 1 hora (`st.cache_data(ttl=3600)`): os filtros não consultam o warehouse a cada clique.
+- Contorno dos estados simplificado e guardado em memória: o mapa ficou bem mais leve ao filtrar.
+
+**Visual**
+- Tema escuro, cabeçalho laranja, cartões com borda e sombra, tudo em uma tela só.
+
+**Atualização dos dados**
+- Os dados não são em tempo real: a fonte (ANAC) é mensal. Atualização em lote (dbt) é suficiente.
+- Para tempo real, seria preciso uma fonte em streaming, Snowpipe/Snowpipe Streaming, dynamic tables e auto-refresh no app, com custo de warehouse bem maior.
